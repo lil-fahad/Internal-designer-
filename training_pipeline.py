@@ -278,10 +278,13 @@ class TrainingPipeline:
             
             # Process batches from stream
             for batch_idx, (furniture_images, metadata) in enumerate(dataset.take(100)):
+                # Get actual batch size from the furniture images
+                actual_batch_size = tf.shape(furniture_images)[0]
+                
                 # Create synthetic floor plans for training
                 # In production, use real floor plan dataset
                 floor_plans = tf.random.normal(
-                    shape=(Config.BATCH_SIZE, *Config.IMAGE_SIZE, 3)
+                    shape=(actual_batch_size, *Config.IMAGE_SIZE, 3)
                 )
                 
                 # Train step

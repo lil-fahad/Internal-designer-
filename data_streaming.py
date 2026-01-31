@@ -169,20 +169,27 @@ class FurnitureDatasetStreamer:
             numpy.ndarray: Individual furniture images
         """
         try:
-            # Stream with requests (doesn't download entire file)
+            # Stream with requests (doesn't download entire file at once)
             response = requests.get(url, stream=True)
             response.raise_for_status()
             
-            # Process in chunks
+            # Accumulate chunks into a complete image buffer
+            buffer = io.BytesIO()
             for chunk in response.iter_content(chunk_size=Config.STREAM_BUFFER_SIZE):
                 if chunk:
-                    # Process chunk as image
-                    try:
-                        image = Image.open(io.BytesIO(chunk))
-                        image = image.resize(self.image_size)
-                        yield np.array(image)
-                    except Exception:
-                        continue  # Skip corrupted chunks
+                    buffer.write(chunk)
+            
+            # Process the complete image data
+            buffer.seek(0)
+            try:
+                image = Image.open(buffer)
+                image = image.resize(self.image_size)
+                # Convert to RGB if necessary
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                yield np.array(image)
+            except Exception:
+                pass  # Skip invalid images
                         
         except requests.RequestException as e:
             print(f"Error streaming from URL {url}: {e}")

@@ -18,6 +18,34 @@ class InteriorDesigner:
     Main inference class for generating interior designs from floor plans.
     """
     
+    # Class-level constant for furniture suggestions - avoids recreating on every call
+    FURNITURE_SUGGESTIONS = {
+        'bedroom': [
+            {'item': 'bed', 'size': 'queen', 'position': 'center'},
+            {'item': 'nightstand', 'quantity': 2, 'position': 'bedside'},
+            {'item': 'wardrobe', 'size': 'large', 'position': 'wall'},
+            {'item': 'desk', 'size': 'small', 'position': 'corner'}
+        ],
+        'living_room': [
+            {'item': 'sofa', 'size': 'large', 'position': 'center'},
+            {'item': 'coffee_table', 'size': 'medium', 'position': 'front'},
+            {'item': 'tv_stand', 'size': 'medium', 'position': 'wall'},
+            {'item': 'armchair', 'quantity': 2, 'position': 'side'}
+        ],
+        'kitchen': [
+            {'item': 'dining_table', 'size': 'medium', 'position': 'center'},
+            {'item': 'chair', 'quantity': 4, 'position': 'table'},
+            {'item': 'cabinet', 'size': 'large', 'position': 'wall'},
+            {'item': 'counter', 'size': 'long', 'position': 'wall'}
+        ],
+        'office': [
+            {'item': 'desk', 'size': 'large', 'position': 'center'},
+            {'item': 'office_chair', 'quantity': 1, 'position': 'desk'},
+            {'item': 'bookshelf', 'size': 'tall', 'position': 'wall'},
+            {'item': 'filing_cabinet', 'size': 'medium', 'position': 'corner'}
+        ]
+    }
+    
     def __init__(self, model_path: Optional[str] = None):
         """
         Initialize the interior designer.
@@ -63,19 +91,22 @@ class InteriorDesigner:
             floor_plan_image
         )
         
-        # Add batch dimension
-        floor_plan_batch = tf.expand_dims(preprocessed, 0)
+        # Batch all variations together for more efficient inference
+        # Tile the preprocessed input for num_variations
+        floor_plan_batch = tf.tile(
+            tf.expand_dims(preprocessed, 0), 
+            [num_variations, 1, 1, 1]
+        )
         
-        designs = []
-        for _ in range(num_variations):
-            # Generate design
-            generated = self.generator(floor_plan_batch, training=False)
-            
-            # Post-process (denormalize from [-1, 1] to [0, 255])
-            design = (generated[0].numpy() + 1.0) * 127.5
-            design = np.clip(design, 0, 255).astype(np.uint8)
-            
-            designs.append(design)
+        # Generate all designs in a single forward pass
+        generated = self.generator(floor_plan_batch, training=False)
+        
+        # Post-process all designs at once (denormalize from [-1, 1] to [0, 255])
+        designs_array = (generated.numpy() + 1.0) * 127.5
+        designs_array = np.clip(designs_array, 0, 255).astype(np.uint8)
+        
+        # Convert to list of individual designs
+        designs = [designs_array[i] for i in range(num_variations)]
         
         return designs
     
@@ -97,27 +128,45 @@ class InteriorDesigner:
         # Extract rooms from floor plan
         rooms = self.floor_plan_streamer.extract_rooms(floor_plan_image)
         
-        room_designs = []
-        for idx, room_data in enumerate(rooms):
+        if not rooms:
+            return {
+                'num_rooms': 0,
+                'room_designs': [],
+                'style': style
+            }
+        
+        # Batch process all rooms together for efficiency
+        room_images = []
+        for room_data in rooms:
             room_img = room_data['image']
-            
             # Resize to standard size
             room_resized = tf.image.resize(
                 room_img, Config.IMAGE_SIZE
             ).numpy().astype(np.uint8)
-            
-            # Generate design for this room
-            designs = self.generate_design(
-                room_resized, 
-                style=style, 
-                num_variations=1
-            )
-            
+            room_images.append(room_resized)
+        
+        # Stack all rooms into a batch
+        room_batch = np.stack(room_images, axis=0)
+        
+        # Preprocess the batch (normalize only, images already resized)
+        room_batch_tensor = tf.cast(room_batch, tf.float32)
+        room_batch_tensor = (room_batch_tensor / 127.5) - 1.0
+        
+        # Generate designs for all rooms in a single forward pass
+        generated_batch = self.generator(room_batch_tensor, training=False)
+        
+        # Post-process all designs
+        designs_array = (generated_batch.numpy() + 1.0) * 127.5
+        designs_array = np.clip(designs_array, 0, 255).astype(np.uint8)
+        
+        # Build room designs list
+        room_designs = []
+        for idx, room_data in enumerate(rooms):
             room_designs.append({
                 'room_id': idx,
                 'bbox': room_data['bbox'],
                 'area': room_data['area'],
-                'design': designs[0],
+                'design': designs_array[idx],
                 'style': style
             })
         
@@ -144,37 +193,10 @@ class InteriorDesigner:
         Returns:
             list: Suggested furniture items
         """
-        furniture_suggestions = {
-            'bedroom': [
-                {'item': 'bed', 'size': 'queen', 'position': 'center'},
-                {'item': 'nightstand', 'quantity': 2, 'position': 'bedside'},
-                {'item': 'wardrobe', 'size': 'large', 'position': 'wall'},
-                {'item': 'desk', 'size': 'small', 'position': 'corner'}
-            ],
-            'living_room': [
-                {'item': 'sofa', 'size': 'large', 'position': 'center'},
-                {'item': 'coffee_table', 'size': 'medium', 'position': 'front'},
-                {'item': 'tv_stand', 'size': 'medium', 'position': 'wall'},
-                {'item': 'armchair', 'quantity': 2, 'position': 'side'}
-            ],
-            'kitchen': [
-                {'item': 'dining_table', 'size': 'medium', 'position': 'center'},
-                {'item': 'chair', 'quantity': 4, 'position': 'table'},
-                {'item': 'cabinet', 'size': 'large', 'position': 'wall'},
-                {'item': 'counter', 'size': 'long', 'position': 'wall'}
-            ],
-            'office': [
-                {'item': 'desk', 'size': 'large', 'position': 'center'},
-                {'item': 'office_chair', 'quantity': 1, 'position': 'desk'},
-                {'item': 'bookshelf', 'size': 'tall', 'position': 'wall'},
-                {'item': 'filing_cabinet', 'size': 'medium', 'position': 'corner'}
-            ]
-        }
-        
-        # Get base suggestions
-        suggestions = furniture_suggestions.get(
+        # Get base suggestions from class-level constant (avoids dict recreation)
+        base_suggestions = self.FURNITURE_SUGGESTIONS.get(
             room_type, 
-            furniture_suggestions['living_room']
+            self.FURNITURE_SUGGESTIONS['living_room']
         )
         
         # Adjust based on room size
@@ -183,22 +205,21 @@ class InteriorDesigner:
         
         # Filter suggestions based on room size
         filtered = []
-        for item in suggestions:
+        for item in base_suggestions:
             # Simple heuristic: larger rooms can fit more furniture
+            include = False
             if area > 20:  # Large room
-                filtered.append(item)
+                include = True
             elif area > 10:  # Medium room
-                if item.get('size') != 'large':
-                    filtered.append(item)
+                include = item.get('size') != 'large'
             else:  # Small room
-                if item.get('size') in ['small', 'medium', None]:
-                    filtered.append(item)
+                include = item.get('size') in ['small', 'medium', None]
+            
+            if include:
+                filtered.append(item)
         
-        # Add style information
-        for item in filtered:
-            item['style'] = style
-        
-        return filtered
+        # Add style to all filtered items
+        return [{**item, 'style': style} for item in filtered]
     
     def analyze_floor_plan(
         self, 
