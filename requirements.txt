@@ -1,0 +1,23 @@
+# Core Framework
+flask==3.0.0
+flask-cors==4.0.0
+
+# ML & AI Libraries
+tensorflow==2.15.0
+tensorflow-datasets==4.9.4
+numpy==1.24.3
+opencv-python==4.9.0.80
+pillow==10.2.0
+scikit-learn==1.4.0
+
+# Data Processing
+pandas==2.1.4
+requests==2.31.0
+h5py==3.10.0
+
+# Model Architecture
+keras==2.15.0
+
+# Utilities
+python-dotenv==1.0.0
+gunicorn==21.2.0
