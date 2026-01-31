@@ -40,7 +40,15 @@ The application follows industry-standard ML architecture:
 - pip
 - Virtual environment (recommended)
 
-### Setup
+### Quick Setup (Recommended)
+
+```bash
+git clone https://github.com/lil-fahad/Internal-designer-.git
+cd Internal-designer-
+./scripts/setup.sh
+```
+
+### Manual Setup
 
 1. Clone the repository:
 ```bash
@@ -65,12 +73,40 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
+### Docker Setup
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Or build manually
+docker build -t interior-designer .
+docker run -p 5000:5000 interior-designer
+```
+
 ## Usage
 
 ### Starting the API Server
 
+**Development Mode:**
 ```bash
-python app.py
+python run.py
+# or
+./scripts/start.sh dev
+```
+
+**Production Mode (Gunicorn):**
+```bash
+gunicorn wsgi:app --bind 0.0.0.0:5000 --workers 4
+# or
+./scripts/start.sh prod
+```
+
+**Docker Mode:**
+```bash
+docker-compose up
+# or
+./scripts/start.sh docker
 ```
 
 The server will start on `http://localhost:5000`
@@ -355,16 +391,29 @@ Internal-designer-/
 ├── data_streaming.py         # Cloud data streaming module
 ├── training_pipeline.py      # ML training pipeline
 ├── inference.py              # Inference and design generation
+├── run.py                    # Application startup script
+├── wsgi.py                   # WSGI entry point for production
 ├── requirements.txt          # Python dependencies
-├── .gitignore               # Git ignore rules
-├── README.md                # This file
-├── examples/                # Example scripts
-│   ├── train_model.py       # Training example
-│   ├── generate_design.py   # Generation example
-│   └── test_api.py          # API testing example
-└── models/                  # Model storage
-    ├── saved/               # Saved model weights
-    └── checkpoints/         # Training checkpoints
+├── Dockerfile                # Docker image definition
+├── docker-compose.yml        # Docker Compose configuration
+├── Procfile                  # Heroku/Railway deployment
+├── .env.example              # Environment variables template
+├── .gitignore                # Git ignore rules
+├── README.md                 # This file
+├── API_DOCS.md               # API documentation
+├── ARCHITECTURE.md           # System architecture
+├── QUICKSTART.md             # Quick start guide
+├── scripts/                  # Utility scripts
+│   ├── setup.sh              # Setup script
+│   ├── start.sh              # Start script
+│   └── test.sh               # Test script
+├── examples/                 # Example scripts
+│   ├── train_model.py        # Training example
+│   ├── generate_design.py    # Generation example
+│   └── test_api.py           # API testing example
+└── models/                   # Model storage (auto-created)
+    ├── saved/                # Saved model weights
+    └── checkpoints/          # Training checkpoints
 ```
 
 ## Security Considerations

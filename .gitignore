@@ -31,10 +31,12 @@ env/
 *.pkl
 *.pt
 *.pth
-models/checkpoints/
-data/cache/
-data/raw/
-data/processed/
+models/
+data/
+
+# Generated images
+*.png
+!examples/*.png
 
 # IDEs
 .vscode/
