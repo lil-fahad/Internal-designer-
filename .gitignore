@@ -34,9 +34,10 @@ env/
 models/
 data/
 
-# Generated images
-*.png
-!examples/*.png
+# Generated images (from examples and testing)
+sample_floor_plan.png
+design_*.png
+test_design_*.png
 
 # IDEs
 .vscode/
