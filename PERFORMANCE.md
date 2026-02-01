@@ -21,7 +21,7 @@ img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
 img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 ```
 
-**Impact:** Reduced memory allocation per image by ~50% during response generation.
+**Impact:** Avoids an extra buffer copy by using `getvalue()` which returns the internal buffer directly.
 
 ---
 
@@ -29,17 +29,17 @@ img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
 
 **Issue:** Converting numpy array batch to list used explicit indexing loop.
 
-**Solution:** Use `list()` directly on the numpy array, which is more efficient.
+**Solution:** Use `list()` directly on the numpy array for cleaner, more idiomatic code.
 
 ```python
-# Before (inefficient)
+# Before
 designs = [designs_array[i] for i in range(num_variations)]
 
-# After (optimized)
+# After
 return list(designs_array)
 ```
 
-**Impact:** Cleaner code using built-in list conversion.
+**Impact:** Cleaner, more Pythonic code. Both approaches produce equivalent results for batch arrays.
 
 ---
 
@@ -63,24 +63,30 @@ dataset = dataset.shuffle(buffer_size=max(1000, self.batch_size * 10))
 
 ### 4. URL Image Loading (data_streaming.py)
 
-**Issue:** Manual chunk accumulation into BytesIO buffer is unnecessary for single images.
+**Issue:** Manual chunk accumulation into BytesIO buffer is unnecessary for typical image files.
 
-**Solution:** Use `response.content` directly which is already buffered by requests library.
+**Solution:** Use `response.content` directly with size validation to prevent memory issues with large files.
 
 ```python
-# Before (inefficient)
+# Before
 buffer = io.BytesIO()
 for chunk in response.iter_content(chunk_size=...):
     buffer.write(chunk)
 buffer.seek(0)
 image = Image.open(buffer)
 
-# After (optimized)
+# After
+# Check file size via HEAD request before downloading
+head_response = requests.head(url, timeout=10)
+content_length = head_response.headers.get('Content-Length')
+if content_length and int(content_length) > MAX_IMAGE_SIZE:
+    return  # Skip large files
+
 response = requests.get(url, timeout=30)
 image = Image.open(io.BytesIO(response.content))
 ```
 
-**Impact:** Eliminated manual buffering overhead. Added timeout for better error handling.
+**Impact:** Simpler code for typical images, with protection against large files. Added timeouts for better error handling.
 
 ---
 

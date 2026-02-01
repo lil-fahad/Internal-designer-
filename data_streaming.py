@@ -159,22 +159,36 @@ class FurnitureDatasetStreamer:
     
     def stream_from_url(self, url: str) -> Iterator[np.ndarray]:
         """
-        Stream images from a URL without downloading the entire dataset.
-        Uses optimized single-pass loading for memory efficiency.
+        Load and process a single image from a URL.
+        Optimized for typical image sizes (< 10MB).
         
         Args:
-            url: URL to stream from
+            url: URL to fetch image from
             
         Yields:
-            numpy.ndarray: Individual furniture images
+            numpy.ndarray: Processed furniture image
         """
+        # Maximum expected image size (10MB) - skip larger files
+        MAX_IMAGE_SIZE = 10 * 1024 * 1024
+        
         try:
-            # Use response.content directly - more efficient than manual chunk accumulation
-            # for single images. For large files, consider streaming to temp file.
+            # Use HEAD request first to check Content-Length for large files
+            head_response = requests.head(url, timeout=10)
+            content_length = head_response.headers.get('Content-Length')
+            if content_length and int(content_length) > MAX_IMAGE_SIZE:
+                print(f"Skipping large file ({content_length} bytes): {url}")
+                return
+            
+            # Fetch image content directly - efficient for typical image sizes
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             
-            # Process image data directly from response content
+            # Additional size check after download
+            if len(response.content) > MAX_IMAGE_SIZE:
+                print(f"Skipping large file ({len(response.content)} bytes): {url}")
+                return
+            
+            # Process image data
             try:
                 image = Image.open(io.BytesIO(response.content))
                 image = image.resize(self.image_size)
@@ -186,7 +200,7 @@ class FurnitureDatasetStreamer:
                 pass  # Skip invalid images
                         
         except requests.RequestException as e:
-            print(f"Error streaming from URL {url}: {e}")
+            print(f"Error fetching image from URL {url}: {e}")
             return
 
 
