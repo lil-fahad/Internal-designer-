@@ -64,21 +64,18 @@ class FurnitureDatasetStreamer:
             furniture_types = ['chair', 'table', 'sofa', 'bed', 'cabinet', 
                              'desk', 'shelf', 'lamp', 'wardrobe', 'bench']
             
-            # Pre-allocate array for reuse - more efficient than repeated allocation
-            image = np.empty((*self.image_size, 3), dtype=np.uint8)
-            
             # Generate infinite stream of synthetic data
             while True:
-                # Fill pre-allocated array in-place for better memory efficiency
-                np.random.randint(0, 255, size=image.shape, out=image)
+                # Create random furniture image (simulating real furniture images)
+                image = np.random.randint(0, 255, 
+                    (*self.image_size, 3), dtype=np.uint8)
                 
                 # Random furniture type and attributes
                 furniture_type = np.random.choice(furniture_types)
                 style = np.random.choice(['modern', 'classic', 'minimalist', 'rustic'])
                 
-                # Copy the image to avoid yielding the same array reference
                 yield {
-                    'image': image.copy(),
+                    'image': image,
                     'label': furniture_type,
                     'style': style,
                     'dimensions': np.random.rand(3) * 100  # width, height, depth

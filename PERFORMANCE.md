@@ -39,30 +39,11 @@ designs = [designs_array[i] for i in range(num_variations)]
 return list(designs_array)
 ```
 
-**Impact:** Eliminated unnecessary list comprehension overhead.
+**Impact:** Cleaner code using built-in list conversion.
 
 ---
 
-### 3. Synthetic Data Generation (data_streaming.py)
-
-**Issue:** Creating a new random array for every synthetic sample caused repeated memory allocations.
-
-**Solution:** Pre-allocate a single array and fill it in-place with `out=` parameter.
-
-```python
-# Before (inefficient)
-image = np.random.randint(0, 255, (*self.image_size, 3), dtype=np.uint8)
-
-# After (optimized)
-image = np.empty((*self.image_size, 3), dtype=np.uint8)
-np.random.randint(0, 255, size=image.shape, out=image)
-```
-
-**Impact:** Reduced memory allocation overhead in training data pipeline.
-
----
-
-### 4. Dynamic Shuffle Buffer (data_streaming.py)
+### 3. Dynamic Shuffle Buffer (data_streaming.py)
 
 **Issue:** Fixed shuffle buffer size (1000) doesn't scale with batch size.
 
@@ -80,7 +61,7 @@ dataset = dataset.shuffle(buffer_size=max(1000, self.batch_size * 10))
 
 ---
 
-### 5. URL Image Loading (data_streaming.py)
+### 4. URL Image Loading (data_streaming.py)
 
 **Issue:** Manual chunk accumulation into BytesIO buffer is unnecessary for single images.
 
@@ -103,7 +84,7 @@ image = Image.open(io.BytesIO(response.content))
 
 ---
 
-### 6. Configurable Steps Per Epoch (training_pipeline.py, config.py)
+### 5. Configurable Steps Per Epoch (training_pipeline.py, config.py)
 
 **Issue:** Hard-coded 100 batches per epoch limit doesn't scale with training needs.
 
