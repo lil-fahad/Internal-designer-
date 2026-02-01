@@ -105,10 +105,8 @@ class InteriorDesigner:
         designs_array = (generated.numpy() + 1.0) * 127.5
         designs_array = np.clip(designs_array, 0, 255).astype(np.uint8)
         
-        # Convert to list of individual designs
-        designs = [designs_array[i] for i in range(num_variations)]
-        
-        return designs
+        # Use list() on array directly - more efficient than indexing loop
+        return list(designs_array)
     
     def generate_room_designs(
         self, 

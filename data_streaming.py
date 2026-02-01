@@ -64,18 +64,21 @@ class FurnitureDatasetStreamer:
             furniture_types = ['chair', 'table', 'sofa', 'bed', 'cabinet', 
                              'desk', 'shelf', 'lamp', 'wardrobe', 'bench']
             
+            # Pre-allocate array for reuse - more efficient than repeated allocation
+            image = np.empty((*self.image_size, 3), dtype=np.uint8)
+            
             # Generate infinite stream of synthetic data
             while True:
-                # Create random furniture image (simulating real furniture images)
-                image = np.random.randint(0, 255, 
-                    (*self.image_size, 3), dtype=np.uint8)
+                # Fill pre-allocated array in-place for better memory efficiency
+                np.random.randint(0, 255, size=image.shape, out=image)
                 
                 # Random furniture type and attributes
                 furniture_type = np.random.choice(furniture_types)
                 style = np.random.choice(['modern', 'classic', 'minimalist', 'rustic'])
                 
+                # Copy the image to avoid yielding the same array reference
                 yield {
-                    'image': image,
+                    'image': image.copy(),
                     'label': furniture_type,
                     'style': style,
                     'dimensions': np.random.rand(3) * 100  # width, height, depth
@@ -146,8 +149,8 @@ class FurnitureDatasetStreamer:
             num_parallel_calls=tf.data.AUTOTUNE
         )
         
-        # Shuffle with reasonable buffer (doesn't require full download)
-        dataset = dataset.shuffle(buffer_size=1000)
+        # Shuffle with buffer scaled to batch size for better randomization
+        dataset = dataset.shuffle(buffer_size=max(1000, self.batch_size * 10))
         
         # Batch the data
         dataset = dataset.batch(self.batch_size)
@@ -160,7 +163,7 @@ class FurnitureDatasetStreamer:
     def stream_from_url(self, url: str) -> Iterator[np.ndarray]:
         """
         Stream images from a URL without downloading the entire dataset.
-        Uses chunked streaming for memory efficiency.
+        Uses optimized single-pass loading for memory efficiency.
         
         Args:
             url: URL to stream from
@@ -169,20 +172,14 @@ class FurnitureDatasetStreamer:
             numpy.ndarray: Individual furniture images
         """
         try:
-            # Stream with requests (doesn't download entire file at once)
-            response = requests.get(url, stream=True)
+            # Use response.content directly - more efficient than manual chunk accumulation
+            # for single images. For large files, consider streaming to temp file.
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
             
-            # Accumulate chunks into a complete image buffer
-            buffer = io.BytesIO()
-            for chunk in response.iter_content(chunk_size=Config.STREAM_BUFFER_SIZE):
-                if chunk:
-                    buffer.write(chunk)
-            
-            # Process the complete image data
-            buffer.seek(0)
+            # Process image data directly from response content
             try:
-                image = Image.open(buffer)
+                image = Image.open(io.BytesIO(response.content))
                 image = image.resize(self.image_size)
                 # Convert to RGB if necessary
                 if image.mode != 'RGB':
