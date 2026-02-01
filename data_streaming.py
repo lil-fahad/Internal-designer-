@@ -2,6 +2,7 @@
 Data Streaming Module for Cloud-hosted Furniture Datasets
 Implements industry-standard streaming patterns for ML training
 """
+import base64
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import requests
@@ -205,9 +206,6 @@ class FurnitureDatasetStreamer:
         Returns:
             dict: Training data samples and metadata
         """
-        import base64
-        from PIL import Image as PILImage
-        
         # Limit samples to prevent memory issues
         num_samples = min(num_samples, 20)
         
@@ -217,8 +215,8 @@ class FurnitureDatasetStreamer:
         samples = []
         for i, data in enumerate(dataset.take(num_samples)):
             # Convert image to base64
-            image = data['image'].numpy()
-            img = PILImage.fromarray(image)
+            image_array = data['image'].numpy()
+            img = Image.fromarray(image_array)
             buffer = io.BytesIO()
             img.save(buffer, format='PNG')
             buffer.seek(0)
