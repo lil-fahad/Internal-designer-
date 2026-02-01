@@ -273,6 +273,54 @@ history = pipeline.train(epochs=50)
 pipeline.save_model()
 ```
 
+### YOLOv8 Furniture Detection Training
+
+Train a YOLOv8 model for furniture detection using Hugging Face datasets. This script:
+- Supports YOLO-ready datasets (e.g., `Libre-YOLO/furniture-ngpea`)
+- Auto-converts COCO/Parquet datasets to YOLO format (e.g., `Francesco/furniture-ngpea`)
+- Merges multiple datasets into a unified training set
+- Trains YOLOv8 with configurable parameters
+
+#### Quick Start
+
+```bash
+python scripts/train_yolov8_furniture.py
+```
+
+#### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `HF_TOKEN` | Hugging Face token (for private datasets) | None |
+| `WORKDIR` | Working directory for training | `./furniture_yolo_training` |
+| `MODEL` | YOLOv8 model to use | `yolov8n.pt` |
+| `EPOCHS` | Number of training epochs | `60` |
+| `BATCH_SIZE` | Training batch size | `16` |
+| `IMG_SIZE` | Image size for training | `640` |
+| `DEVICE` | Training device (GPU ID or 'cpu') | `0` |
+| `PATIENCE` | Early stopping patience | `20` |
+
+#### Example with Custom Settings
+
+```bash
+export EPOCHS=100
+export BATCH_SIZE=32
+export MODEL=yolov8s.pt
+python scripts/train_yolov8_furniture.py
+```
+
+#### Output
+
+After training, the best model weights are saved to:
+```
+./furniture_yolo_training/runs/furniture_detector/weights/best.pt
+```
+
+The script detects 3 furniture classes:
+- `chair`
+- `sofa`
+- `table`
+
 ### Streaming Data Pipeline
 
 The data streaming module (`data_streaming.py`) implements:
@@ -406,7 +454,8 @@ Internal-designer-/
 ├── scripts/                  # Utility scripts
 │   ├── setup.sh              # Setup script
 │   ├── start.sh              # Start script
-│   └── test.sh               # Test script
+│   ├── test.sh               # Test script
+│   └── train_yolov8_furniture.py  # YOLOv8 training for furniture detection
 ├── examples/                 # Example scripts
 │   ├── train_model.py        # Training example
 │   ├── generate_design.py    # Generation example
