@@ -39,19 +39,21 @@ def load_designer():
     """Lazy load the designer model"""
     global designer
     if designer is None:
-        # Try to load latest model
-        model_files = []
+        model_path = None
+        # Try to load latest model - use file modification time for accurate sorting
         if os.path.exists(Config.MODEL_DIR):
             model_files = [
                 f for f in os.listdir(Config.MODEL_DIR) 
                 if f.endswith('.h5')
             ]
-        
-        model_path = None
-        if model_files:
-            # Load most recent model
-            model_files.sort(reverse=True)
-            model_path = os.path.join(Config.MODEL_DIR, model_files[0])
+            if model_files:
+                # Sort by modification time (most recent first) for more accurate selection
+                model_files_with_time = [
+                    (f, os.path.getmtime(os.path.join(Config.MODEL_DIR, f)))
+                    for f in model_files
+                ]
+                model_files_with_time.sort(key=lambda x: x[1], reverse=True)
+                model_path = os.path.join(Config.MODEL_DIR, model_files_with_time[0][0])
         
         designer = InteriorDesigner(model_path)
     return designer
