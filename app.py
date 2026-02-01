@@ -72,6 +72,7 @@ def home():
             '/api/design/suggest': 'Get furniture suggestions',
             '/api/train/start': 'Start model training',
             '/api/train/status': 'Get training status',
+            '/api/train/data': 'Fetch training data samples',
             '/api/health': 'Health check'
         }
     })
@@ -297,6 +298,36 @@ def training_status():
         'status': 'training',
         'streaming_enabled': True
     })
+
+
+@app.route('/api/train/data', methods=['GET'])
+def get_training_data():
+    """
+    Fetch training data samples.
+    
+    Request:
+        - num_samples: Number of samples to fetch (optional, default: 5, max: 20)
+        
+    Response:
+        - samples: List of training data samples with images and metadata
+    """
+    try:
+        from data_streaming import FurnitureDatasetStreamer
+        
+        num_samples = int(request.args.get('num_samples', 5))
+        num_samples = min(max(num_samples, 1), 20)  # Clamp between 1 and 20
+        
+        # Get training data samples
+        streamer = FurnitureDatasetStreamer()
+        data = streamer.get_training_data_samples(num_samples)
+        
+        return jsonify({
+            'success': True,
+            **data
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.errorhandler(413)

@@ -239,7 +239,33 @@ POST /api/train/start
 }
 ```
 
-#### 5. Health Check
+#### 5. Fetch Training Data
+
+```bash
+GET /api/train/data?num_samples=5
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "num_samples": 5,
+  "image_size": [256, 256],
+  "batch_size": 32,
+  "streaming_mode": true,
+  "samples": [
+    {
+      "id": 0,
+      "image": "base64_encoded_image",
+      "label": "chair",
+      "style": "modern",
+      "dimensions": [45.2, 82.1, 50.3]
+    }
+  ]
+}
+```
+
+#### 6. Health Check
 
 ```bash
 GET /api/health
