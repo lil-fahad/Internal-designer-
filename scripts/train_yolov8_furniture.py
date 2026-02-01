@@ -238,7 +238,10 @@ class DatasetImporter:
         data_yaml = read_yaml(data_yaml_path)
         names = normalize_names(data_yaml.get("names"))
         if not names:
-            raise RuntimeError(f"{repo_id}: names not found in data.yaml")
+            raise RuntimeError(
+                f"{repo_id}: 'names' field not found or empty in data.yaml. "
+                "Expected format: names: [class1, class2, ...] or names: {{0: class1, 1: class2, ...}}"
+            )
 
         # Resolve base path
         base = data_yaml.get("path", os.path.dirname(data_yaml_path))
@@ -328,13 +331,13 @@ class DatasetImporter:
             return None, None
 
         def yolo_line(cls: int, x: float, y: float, w: float, h: float,
-                      img_w: int, img_h: int) -> str:
+                      image_width: int, image_height: int) -> str:
             """Create YOLO format line from COCO bbox."""
             # COCO bbox: [x, y, width, height] in pixels
-            x_center = (x + w / 2) / img_w
-            y_center = (y + h / 2) / img_h
-            width_norm = w / img_w
-            height_norm = h / img_h
+            x_center = (x + w / 2) / image_width
+            y_center = (y + h / 2) / image_height
+            width_norm = w / image_width
+            height_norm = h / image_height
             return f"{cls} {x_center:.6f} {y_center:.6f} {width_norm:.6f} {height_norm:.6f}"
 
         # Process each split
@@ -355,7 +358,7 @@ class DatasetImporter:
                 else:
                     pil_img = Image.fromarray(img)
 
-                img_w, img_h = pil_img.size
+                image_width, image_height = pil_img.size
                 stem = f"{idx:08d}"
 
                 img_out = os.path.join(out_dir, "images", split, f"{stem}.jpg")
@@ -376,16 +379,19 @@ class DatasetImporter:
                     open(lbl_out, "w").write("")
                     continue
 
+                # Minimum bounding box area in pixels (skip very small annotations)
+                MIN_BBOX_AREA_PIXELS = 20
+
                 lines = []
                 for bbox, cat in zip(bboxes, cats):
                     x, y, w, h = bbox
                     if int(cat) not in local_to_final:
                         continue
                     cls_id = local_to_final[int(cat)]
-                    # Skip tiny boxes
-                    if w * h < 20:
+                    # Skip boxes smaller than minimum area threshold
+                    if w * h < MIN_BBOX_AREA_PIXELS:
                         continue
-                    lines.append(yolo_line(cls_id, x, y, w, h, img_w, img_h))
+                    lines.append(yolo_line(cls_id, x, y, w, h, image_width, image_height))
 
                 with open(lbl_out, "w", encoding="utf-8") as f:
                     f.write("\n".join(lines) + ("\n" if lines else ""))
@@ -437,6 +443,28 @@ class DatasetMerger:
         self.val_count = 0
         self.test_count = 0
 
+    def _increment_counter(self, split: str) -> int:
+        """Increment and return the counter for the given split."""
+        if split == "train":
+            count = self.train_count
+            self.train_count += 1
+        elif split == "val":
+            count = self.val_count
+            self.val_count += 1
+        else:
+            count = self.test_count
+            self.test_count += 1
+        return count
+
+    def _decrement_counter(self, split: str) -> None:
+        """Decrement the counter for the given split."""
+        if split == "train":
+            self.train_count -= 1
+        elif split == "val":
+            self.val_count -= 1
+        else:
+            self.test_count -= 1
+
     def merge_split(
         self,
         info: Dict,
@@ -477,16 +505,9 @@ class DatasetMerger:
                 missing += 1
                 continue
 
-            # Generate unique filename
-            if split == "train":
-                new_name = f"{info['repo'].replace('/', '_')}_{self.train_count:08d}"
-                self.train_count += 1
-            elif split == "val":
-                new_name = f"{info['repo'].replace('/', '_')}_{self.val_count:08d}"
-                self.val_count += 1
-            else:
-                new_name = f"{info['repo'].replace('/', '_')}_{self.test_count:08d}"
-                self.test_count += 1
+            # Generate unique filename using helper method
+            count = self._increment_counter(split)
+            new_name = f"{info['repo'].replace('/', '_')}_{count:08d}"
 
             ext = os.path.splitext(img_path)[1].lower()
             out_img = os.path.join(out_img_dir, new_name + ext)
@@ -499,12 +520,7 @@ class DatasetMerger:
             if os.path.getsize(out_lbl) == 0:
                 os.remove(out_lbl)
                 os.remove(out_img)
-                if split == "train":
-                    self.train_count -= 1
-                elif split == "val":
-                    self.val_count -= 1
-                else:
-                    self.test_count -= 1
+                self._decrement_counter(split)
                 continue
 
             kept += 1
