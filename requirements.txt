@@ -10,6 +10,12 @@ opencv-python>=4.9.0
 pillow>=10.0.0
 scikit-learn>=1.4.0
 
+# YOLOv8 Training
+ultralytics==8.2.0
+huggingface-hub>=0.25.0
+datasets>=2.18.0
+pycocotools>=2.0.7
+
 # Data Processing
 pandas>=2.1.0
 requests>=2.31.0
