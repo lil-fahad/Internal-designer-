@@ -276,8 +276,8 @@ class TrainingPipeline:
             self.gen_loss_metric.reset_states()
             self.disc_loss_metric.reset_states()
             
-            # Process batches from stream
-            for batch_idx, (furniture_images, metadata) in enumerate(dataset.take(100)):
+            # Process batches from stream - use configurable steps per epoch
+            for batch_idx, (furniture_images, metadata) in enumerate(dataset.take(Config.STEPS_PER_EPOCH)):
                 # Get actual batch size from the furniture images
                 actual_batch_size = tf.shape(furniture_images)[0]
                 

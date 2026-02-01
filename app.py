@@ -136,14 +136,13 @@ def generate_design():
             num_variations=variations
         )
         
-        # Convert to base64
+        # Convert to base64 - use getvalue() to avoid extra copy from read()
         design_images = []
         for design in designs:
             img = Image.fromarray(design)
             buffer = io.BytesIO()
             img.save(buffer, format='PNG')
-            buffer.seek(0)
-            img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
             design_images.append(img_base64)
         
         return jsonify({

@@ -146,8 +146,8 @@ class FurnitureDatasetStreamer:
             num_parallel_calls=tf.data.AUTOTUNE
         )
         
-        # Shuffle with reasonable buffer (doesn't require full download)
-        dataset = dataset.shuffle(buffer_size=1000)
+        # Shuffle with buffer scaled to batch size for better randomization
+        dataset = dataset.shuffle(buffer_size=max(1000, self.batch_size * 10))
         
         # Batch the data
         dataset = dataset.batch(self.batch_size)
@@ -159,30 +159,38 @@ class FurnitureDatasetStreamer:
     
     def stream_from_url(self, url: str) -> Iterator[np.ndarray]:
         """
-        Stream images from a URL without downloading the entire dataset.
-        Uses chunked streaming for memory efficiency.
+        Load and process a single image from a URL.
+        Optimized for typical image sizes (< 10MB).
         
         Args:
-            url: URL to stream from
+            url: URL to fetch image from
             
         Yields:
-            numpy.ndarray: Individual furniture images
+            numpy.ndarray: Processed furniture image
         """
+        # Maximum expected image size (10MB) - skip larger files
+        MAX_IMAGE_SIZE = 10 * 1024 * 1024
+        
         try:
-            # Stream with requests (doesn't download entire file at once)
-            response = requests.get(url, stream=True)
+            # Use HEAD request first to check Content-Length for large files
+            head_response = requests.head(url, timeout=10)
+            content_length = head_response.headers.get('Content-Length')
+            if content_length and int(content_length) > MAX_IMAGE_SIZE:
+                print(f"Skipping large file ({content_length} bytes): {url}")
+                return
+            
+            # Fetch image content directly - efficient for typical image sizes
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
             
-            # Accumulate chunks into a complete image buffer
-            buffer = io.BytesIO()
-            for chunk in response.iter_content(chunk_size=Config.STREAM_BUFFER_SIZE):
-                if chunk:
-                    buffer.write(chunk)
+            # Additional size check after download
+            if len(response.content) > MAX_IMAGE_SIZE:
+                print(f"Skipping large file ({len(response.content)} bytes): {url}")
+                return
             
-            # Process the complete image data
-            buffer.seek(0)
+            # Process image data
             try:
-                image = Image.open(buffer)
+                image = Image.open(io.BytesIO(response.content))
                 image = image.resize(self.image_size)
                 # Convert to RGB if necessary
                 if image.mode != 'RGB':
@@ -192,7 +200,7 @@ class FurnitureDatasetStreamer:
                 pass  # Skip invalid images
                         
         except requests.RequestException as e:
-            print(f"Error streaming from URL {url}: {e}")
+            print(f"Error fetching image from URL {url}: {e}")
             return
 
 
