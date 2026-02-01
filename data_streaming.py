@@ -195,6 +195,51 @@ class FurnitureDatasetStreamer:
             print(f"Error streaming from URL {url}: {e}")
             return
 
+    def get_training_data_samples(self, num_samples: int = 5) -> dict:
+        """
+        Fetch sample training data with metadata.
+        
+        Args:
+            num_samples: Number of samples to fetch (default: 5, max: 20)
+            
+        Returns:
+            dict: Training data samples and metadata
+        """
+        import base64
+        from PIL import Image as PILImage
+        
+        # Limit samples to prevent memory issues
+        num_samples = min(num_samples, 20)
+        
+        # Get streaming dataset
+        dataset = self._create_synthetic_stream()
+        
+        samples = []
+        for i, data in enumerate(dataset.take(num_samples)):
+            # Convert image to base64
+            image = data['image'].numpy()
+            img = PILImage.fromarray(image)
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            
+            samples.append({
+                'id': i,
+                'image': img_base64,
+                'label': data['label'].numpy().decode('utf-8'),
+                'style': data['style'].numpy().decode('utf-8'),
+                'dimensions': data['dimensions'].numpy().tolist()
+            })
+        
+        return {
+            'num_samples': len(samples),
+            'image_size': list(self.image_size),
+            'batch_size': self.batch_size,
+            'streaming_mode': True,
+            'samples': samples
+        }
+
 
 class FloorPlanDataStreamer:
     """
