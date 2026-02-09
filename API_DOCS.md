@@ -278,6 +278,47 @@ or
 }
 ```
 
+### 8. Fetch Training Data
+
+Fetch training data samples with metadata.
+
+**Endpoint:** `GET /api/train/data`
+
+**Parameters:**
+- `num_samples` (optional): Number of samples to fetch (1-20, default: 5)
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/train/data?num_samples=3"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "num_samples": 3,
+  "image_size": [256, 256],
+  "batch_size": 32,
+  "streaming_mode": true,
+  "samples": [
+    {
+      "id": 0,
+      "image": "iVBORw0KGgoAAAANSUhEUgAA...",
+      "label": "chair",
+      "style": "modern",
+      "dimensions": [45.2, 82.1, 50.3]
+    },
+    {
+      "id": 1,
+      "image": "iVBORw0KGgoAAAANSUhEUgAA...",
+      "label": "table",
+      "style": "classic",
+      "dimensions": [120.5, 75.0, 80.2]
+    }
+  ]
+}
+```
+
 ## Error Handling
 
 All endpoints return JSON responses. Error responses follow this format:
