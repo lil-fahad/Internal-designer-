@@ -24,6 +24,7 @@ class Config:
     EPOCHS = int(os.getenv('EPOCHS', 50))
     LEARNING_RATE = float(os.getenv('LEARNING_RATE', 0.0002))
     IMAGE_SIZE = (256, 256)
+    STEPS_PER_EPOCH = int(os.getenv('STEPS_PER_EPOCH', 100))
     
     # Dataset Configuration (Cloud URLs for streaming)
     FURNITURE_DATASET_URLS = [
